@@ -8,7 +8,11 @@ import type {
   SetPriorityRequest,
   AddCredentialRequest,
   AddCredentialResponse,
+  CredentialStrategyResponse,
+  SetCredentialStrategyRequest,
+  CredentialStrategy,
 } from '@/types/api'
+
 
 // 创建 axios 实例
 const api = axios.create({
@@ -84,3 +88,23 @@ export async function deleteCredential(id: number): Promise<SuccessResponse> {
   const { data } = await api.delete<SuccessResponse>(`/credentials/${id}`)
   return data
 }
+
+// 获取凭据选择策略
+export async function getCredentialStrategy(): Promise<CredentialStrategyResponse> {
+  const { data } = await api.get<CredentialStrategyResponse>(
+    '/config/credential-strategy'
+  )
+  return data
+}
+
+// 设置凭据选择策略
+export async function setCredentialStrategy(
+  strategy: CredentialStrategy
+): Promise<SuccessResponse> {
+  const { data } = await api.post<SuccessResponse>(
+    '/config/credential-strategy',
+    { credentialStrategy: strategy } as SetCredentialStrategyRequest
+  )
+  return data
+}
+

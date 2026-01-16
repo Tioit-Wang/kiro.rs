@@ -2,6 +2,38 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+/// 凭据选择策略
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CredentialSelectionStrategy {
+    /// 优先级策略（默认）
+    Priority,
+    /// 全量轮询策略
+    RoundRobin,
+}
+
+impl Default for CredentialSelectionStrategy {
+    fn default() -> Self {
+        Self::Priority
+    }
+}
+
+impl CredentialSelectionStrategy {
+    pub fn as_u8(self) -> u8 {
+        match self {
+            Self::Priority => 0,
+            Self::RoundRobin => 1,
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::RoundRobin,
+            _ => Self::Priority,
+        }
+    }
+}
+
 /// KNA 应用配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +46,10 @@ pub struct Config {
 
     #[serde(default = "default_region")]
     pub region: String,
+
+    /// 凭据选择策略（默认 priority）
+    #[serde(default)]
+    pub credential_strategy: CredentialSelectionStrategy,
 
     #[serde(default = "default_kiro_version")]
     pub kiro_version: String,
@@ -95,6 +131,7 @@ impl Default for Config {
             host: default_host(),
             port: default_port(),
             region: default_region(),
+            credential_strategy: CredentialSelectionStrategy::default(),
             kiro_version: default_kiro_version(),
             machine_id: None,
             api_key: None,
@@ -128,5 +165,22 @@ impl Config {
         let content = fs::read_to_string(path)?;
         let config: Config = serde_json::from_str(&content)?;
         Ok(config)
+    }
+
+    /// 保存配置到文件
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        use anyhow::Context;
+
+        let path = path.as_ref();
+        let json = serde_json::to_string_pretty(self).context("序列化配置失败")?;
+
+        if tokio::runtime::Handle::try_current().is_ok() {
+            tokio::task::block_in_place(|| fs::write(path, &json))
+                .context(format!("写入配置失败: {:?}", path))?;
+        } else {
+            fs::write(path, &json).context(format!("写入配置失败: {:?}", path))?;
+        }
+
+        Ok(())
     }
 }

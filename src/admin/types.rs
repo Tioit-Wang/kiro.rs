@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::model::config::CredentialSelectionStrategy;
+
 // ============ 凭据状态 ============
 
 /// 所有凭据状态响应
@@ -38,6 +40,22 @@ pub struct CredentialStatusItem {
     pub auth_method: Option<String>,
     /// 是否有 Profile ARN
     pub has_profile_arn: bool,
+}
+
+// ============ 配置与策略 ============
+
+/// 凭据策略响应
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialStrategyResponse {
+    pub credential_strategy: CredentialSelectionStrategy,
+}
+
+/// 修改凭据策略请求
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetCredentialStrategyRequest {
+    pub credential_strategy: CredentialSelectionStrategy,
 }
 
 // ============ 操作请求 ============

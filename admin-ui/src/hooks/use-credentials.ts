@@ -7,8 +7,11 @@ import {
   getCredentialBalance,
   addCredential,
   deleteCredential,
+  getCredentialStrategy,
+  setCredentialStrategy,
 } from '@/api/credentials'
-import type { AddCredentialRequest } from '@/types/api'
+import type { AddCredentialRequest, CredentialStrategy } from '@/types/api'
+
 
 // 查询凭据列表
 export function useCredentials() {
@@ -85,3 +88,24 @@ export function useDeleteCredential() {
     },
   })
 }
+
+// 获取凭据选择策略
+export function useCredentialStrategy() {
+  return useQuery({
+    queryKey: ['credential-strategy'],
+    queryFn: getCredentialStrategy,
+  })
+}
+
+// 设置凭据选择策略
+export function useSetCredentialStrategy() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (strategy: CredentialStrategy) => setCredentialStrategy(strategy),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['credential-strategy'] })
+      queryClient.invalidateQueries({ queryKey: ['credentials'] })
+    },
+  })
+}
+

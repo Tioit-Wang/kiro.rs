@@ -3,5 +3,7 @@
   "port": 8990,
   "apiKey": "sk-kiro-rs-qazWSXedcRFV123456",
   "region": "us-east-1",
+  "credentialStrategy": "priority",
   "adminApiKey": "sk-admin-your-secret-key"
+
 }

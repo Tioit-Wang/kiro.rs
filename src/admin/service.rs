@@ -1,14 +1,18 @@
 //! Admin API 业务逻辑服务
 
+use std::path::PathBuf;
 use std::sync::Arc;
+
+use parking_lot::Mutex;
 
 use crate::kiro::model::credentials::KiroCredentials;
 use crate::kiro::token_manager::MultiTokenManager;
+use crate::model::config::{Config, CredentialSelectionStrategy};
 
 use super::error::AdminServiceError;
 use super::types::{
     AddCredentialRequest, AddCredentialResponse, BalanceResponse, CredentialStatusItem,
-    CredentialsStatusResponse,
+    CredentialStrategyResponse, CredentialsStatusResponse,
 };
 
 /// Admin 服务
@@ -16,11 +20,21 @@ use super::types::{
 /// 封装所有 Admin API 的业务逻辑
 pub struct AdminService {
     token_manager: Arc<MultiTokenManager>,
+    config: Arc<Mutex<Config>>,
+    config_path: PathBuf,
 }
 
 impl AdminService {
-    pub fn new(token_manager: Arc<MultiTokenManager>) -> Self {
-        Self { token_manager }
+    pub fn new(
+        token_manager: Arc<MultiTokenManager>,
+        config: Arc<Mutex<Config>>,
+        config_path: impl Into<PathBuf>,
+    ) -> Self {
+        Self {
+            token_manager,
+            config,
+            config_path: config_path.into(),
+        }
     }
 
     /// 获取所有凭据状态
@@ -51,6 +65,37 @@ impl AdminService {
             current_id: snapshot.current_id,
             credentials,
         }
+    }
+
+    /// 获取凭据选择策略
+    pub fn get_credential_strategy(&self) -> CredentialStrategyResponse {
+        let config = self.config.lock();
+        CredentialStrategyResponse {
+            credential_strategy: config.credential_strategy,
+        }
+    }
+
+    /// 设置凭据选择策略并写回配置
+    pub fn set_credential_strategy(
+        &self,
+        strategy: CredentialSelectionStrategy,
+    ) -> Result<(), AdminServiceError> {
+        let mut config = self.config.lock();
+        let previous = config.credential_strategy;
+
+        if previous == strategy {
+            return Ok(());
+        }
+
+        config.credential_strategy = strategy;
+        if let Err(e) = config.save(&self.config_path) {
+            config.credential_strategy = previous;
+            return Err(AdminServiceError::InternalError(e.to_string()));
+        }
+        drop(config);
+
+        self.token_manager.set_selection_strategy(strategy);
+        Ok(())
     }
 
     /// 设置凭据禁用状态

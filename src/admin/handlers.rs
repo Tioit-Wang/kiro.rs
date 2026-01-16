@@ -8,7 +8,10 @@ use axum::{
 
 use super::{
     middleware::AdminState,
-    types::{AddCredentialRequest, SetDisabledRequest, SetPriorityRequest, SuccessResponse},
+    types::{
+        AddCredentialRequest, SetCredentialStrategyRequest, SetDisabledRequest, SetPriorityRequest,
+        SuccessResponse,
+    },
 };
 
 /// GET /api/admin/credentials
@@ -18,7 +21,30 @@ pub async fn get_all_credentials(State(state): State<AdminState>) -> impl IntoRe
     Json(response)
 }
 
+/// GET /api/admin/config/credential-strategy
+/// 获取凭据选择策略
+pub async fn get_credential_strategy(State(state): State<AdminState>) -> impl IntoResponse {
+    let response = state.service.get_credential_strategy();
+    Json(response)
+}
+
+/// POST /api/admin/config/credential-strategy
+/// 设置凭据选择策略
+pub async fn set_credential_strategy(
+    State(state): State<AdminState>,
+    Json(payload): Json<SetCredentialStrategyRequest>,
+) -> impl IntoResponse {
+    match state
+        .service
+        .set_credential_strategy(payload.credential_strategy)
+    {
+        Ok(_) => Json(SuccessResponse::new("凭据策略已更新")).into_response(),
+        Err(e) => (e.status_code(), Json(e.into_response())).into_response(),
+    }
+}
+
 /// POST /api/admin/credentials/:id/disabled
+
 /// 设置凭据禁用状态
 pub async fn set_credential_disabled(
     State(state): State<AdminState>,

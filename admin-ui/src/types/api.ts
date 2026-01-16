@@ -18,7 +18,19 @@ export interface CredentialStatusItem {
   hasProfileArn: boolean
 }
 
+// 凭据选择策略
+export type CredentialStrategy = 'priority' | 'roundRobin'
+
+export interface CredentialStrategyResponse {
+  credentialStrategy: CredentialStrategy
+}
+
+export interface SetCredentialStrategyRequest {
+  credentialStrategy: CredentialStrategy
+}
+
 // 余额响应
+
 export interface BalanceResponse {
   id: number
   subscriptionTitle: string | null

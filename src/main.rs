@@ -10,7 +10,10 @@ pub mod token;
 use std::sync::Arc;
 
 use clap::Parser;
+use parking_lot::Mutex;
+
 use kiro::model::credentials::{CredentialsConfig, KiroCredentials};
+
 use kiro::provider::KiroProvider;
 use kiro::token_manager::MultiTokenManager;
 use model::arg::Args;
@@ -37,6 +40,7 @@ async fn main() {
         tracing::error!("加载配置失败: {}", e);
         std::process::exit(1);
     });
+    let config_store = Arc::new(Mutex::new(config.clone()));
 
     // 加载凭证（支持单对象或数组格式）
     let credentials_path = args
@@ -120,7 +124,12 @@ async fn main() {
             tracing::warn!("admin_api_key 配置为空，Admin API 未启用");
             anthropic_app
         } else {
-            let admin_service = admin::AdminService::new(token_manager.clone());
+            let admin_service = admin::AdminService::new(
+                token_manager.clone(),
+                config_store.clone(),
+                config_path.clone(),
+            );
+
             let admin_state = admin::AdminState::new(admin_key, admin_service);
             let admin_app = admin::create_admin_router(admin_state);
 

@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { CredentialCard } from '@/components/credential-card'
 import { BalanceDialog } from '@/components/balance-dialog'
 import { AddCredentialDialog } from '@/components/add-credential-dialog'
-import { useCredentials } from '@/hooks/use-credentials'
+import { Switch } from '@/components/ui/switch'
+import { useCredentials, useCredentialStrategy, useSetCredentialStrategy } from '@/hooks/use-credentials'
 
 interface DashboardProps {
   onLogout: () => void
@@ -28,6 +29,8 @@ export function Dashboard({ onLogout }: DashboardProps) {
 
   const queryClient = useQueryClient()
   const { data, isLoading, error, refetch } = useCredentials()
+  const { data: strategyData } = useCredentialStrategy()
+  const setStrategyMutation = useSetCredentialStrategy()
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)
@@ -42,6 +45,18 @@ export function Dashboard({ onLogout }: DashboardProps) {
   const handleRefresh = () => {
     refetch()
     toast.success('已刷新凭据列表')
+  }
+
+  const handleStrategyToggle = (checked: boolean) => {
+    const newStrategy = checked ? 'roundRobin' : 'priority'
+    setStrategyMutation.mutate(newStrategy, {
+      onSuccess: () => {
+        toast.success(`已切换为${checked ? '轮询' : '优先级'}模式`)
+      },
+      onError: (err) => {
+        toast.error(`切换失败: ${(err as Error).message}`)
+      },
+    })
   }
 
   const handleLogout = () => {
@@ -104,7 +119,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
       {/* 主内容 */}
       <main className="container px-4 md:px-8 py-6">
         {/* 统计卡片 */}
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -135,6 +150,25 @@ export function Dashboard({ onLogout }: DashboardProps) {
               <div className="text-2xl font-bold flex items-center gap-2">
                 #{data?.currentId || '-'}
                 <Badge variant="success">活跃</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                凭据策略
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {strategyData?.credentialStrategy === 'roundRobin' ? '轮询' : '优先级'}
+                </span>
+                <Switch
+                  checked={strategyData?.credentialStrategy === 'roundRobin'}
+                  onCheckedChange={handleStrategyToggle}
+                  disabled={setStrategyMutation.isPending}
+                />
               </div>
             </CardContent>
           </Card>
