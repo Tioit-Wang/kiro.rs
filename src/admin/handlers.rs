@@ -10,7 +10,7 @@ use super::{
     middleware::AdminState,
     types::{
         AddCredentialRequest, SetCredentialStrategyRequest, SetDisabledRequest, SetPriorityRequest,
-        SuccessResponse,
+        SuccessResponse, ValidateCredentialsRequest,
     },
 };
 
@@ -125,6 +125,18 @@ pub async fn delete_credential(
 ) -> impl IntoResponse {
     match state.service.delete_credential(id) {
         Ok(_) => Json(SuccessResponse::new(format!("凭据 #{} 已删除", id))).into_response(),
+        Err(e) => (e.status_code(), Json(e.into_response())).into_response(),
+    }
+}
+
+/// POST /api/admin/credentials/validate
+/// 批量验证凭据
+pub async fn validate_credentials(
+    State(state): State<AdminState>,
+    Json(payload): Json<ValidateCredentialsRequest>,
+) -> impl IntoResponse {
+    match state.service.validate_credentials(payload).await {
+        Ok(response) => Json(response).into_response(),
         Err(e) => (e.status_code(), Json(e.into_response())).into_response(),
     }
 }

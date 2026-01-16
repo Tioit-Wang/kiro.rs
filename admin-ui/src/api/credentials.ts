@@ -11,8 +11,9 @@ import type {
   CredentialStrategyResponse,
   SetCredentialStrategyRequest,
   CredentialStrategy,
+  ValidateCredentialsRequest,
+  ValidateCredentialsResponse,
 } from '@/types/api'
-
 
 // 创建 axios 实例
 const api = axios.create({
@@ -104,6 +105,17 @@ export async function setCredentialStrategy(
   const { data } = await api.post<SuccessResponse>(
     '/config/credential-strategy',
     { credentialStrategy: strategy } as SetCredentialStrategyRequest
+  )
+  return data
+}
+
+// 批量验证凭据
+export async function validateCredentials(
+  req: ValidateCredentialsRequest
+): Promise<ValidateCredentialsResponse> {
+  const { data } = await api.post<ValidateCredentialsResponse>(
+    '/credentials/validate',
+    req
   )
   return data
 }

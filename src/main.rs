@@ -101,7 +101,7 @@ async fn main() {
         api_url: config.count_tokens_api_url.clone(),
         api_key: config.count_tokens_api_key.clone(),
         auth_type: config.count_tokens_auth_type.clone(),
-        proxy: proxy_config,
+        proxy: proxy_config.clone(),
     });
 
     // 构建 Anthropic API 路由（从第一个凭据获取 profile_arn）
@@ -124,13 +124,19 @@ async fn main() {
             tracing::warn!("admin_api_key 配置为空，Admin API 未启用");
             anthropic_app
         } else {
+            // 为 Admin API 创建独立的 KiroProvider
+            let admin_provider = Arc::new(KiroProvider::with_proxy(
+                token_manager.clone(),
+                proxy_config.clone(),
+            ));
             let admin_service = admin::AdminService::new(
                 token_manager.clone(),
+                admin_provider,
                 config_store.clone(),
                 config_path.clone(),
             );
-
             let admin_state = admin::AdminState::new(admin_key, admin_service);
+
             let admin_app = admin::create_admin_router(admin_state);
 
             // 创建 Admin UI 路由

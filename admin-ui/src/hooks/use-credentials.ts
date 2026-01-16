@@ -9,8 +9,13 @@ import {
   deleteCredential,
   getCredentialStrategy,
   setCredentialStrategy,
+  validateCredentials,
 } from '@/api/credentials'
-import type { AddCredentialRequest, CredentialStrategy } from '@/types/api'
+import type {
+  AddCredentialRequest,
+  CredentialStrategy,
+  ValidateCredentialsRequest,
+} from '@/types/api'
 
 
 // 查询凭据列表
@@ -108,4 +113,12 @@ export function useSetCredentialStrategy() {
     },
   })
 }
+
+// 批量验证凭据
+export function useValidateCredentials() {
+  return useMutation({
+    mutationFn: (req: ValidateCredentialsRequest) => validateCredentials(req),
+  })
+}
+
 

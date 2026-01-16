@@ -55,6 +55,46 @@ impl KiroProvider {
         &self.token_manager
     }
 
+    /// 验证凭据是否可用（不影响失败计数）
+    ///
+    /// 发送最小化的 API 请求来验证凭据是否有效。
+    /// 与 `call_api` 不同，此方法：
+    /// - 不调用 report_success/report_failure
+    /// - 不影响凭据的失败计数和禁用状态
+    /// - 使用指定的 CallContext（不自动获取）
+    ///
+    /// # Arguments
+    /// * `ctx` - 调用上下文（包含凭据和 token）
+    /// * `request_body` - JSON 格式的请求体字符串
+    /// * `timeout` - 请求超时时间
+    ///
+    /// # Returns
+    /// - `Ok(status_code)` - 请求完成，返回 HTTP 状态码
+    /// - `Err` - 网络错误或超时
+    pub async fn validate_credential(
+        &self,
+        ctx: &CallContext,
+        request_body: &str,
+        timeout: std::time::Duration,
+    ) -> anyhow::Result<u16> {
+        let url = self.base_url();
+        let headers = self.build_headers(ctx)?;
+
+        let response = tokio::time::timeout(
+            timeout,
+            self.client
+                .post(&url)
+                .headers(headers)
+                .body(request_body.to_string())
+                .send(),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("请求超时"))?
+        .map_err(|e| anyhow::anyhow!("网络错误: {}", e))?;
+
+        Ok(response.status().as_u16())
+    }
+
     /// 获取 API 基础 URL
     pub fn base_url(&self) -> String {
         format!(
