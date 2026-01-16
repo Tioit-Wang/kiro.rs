@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RefreshCw, LogOut, Moon, Sun, Server, Plus, ShieldCheck } from 'lucide-react'
+import { RefreshCw, LogOut, Moon, Sun, Server, Plus, ShieldCheck, Activity, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { storage } from '@/lib/storage'
@@ -11,7 +11,8 @@ import { BalanceDialog } from '@/components/balance-dialog'
 import { AddCredentialDialog } from '@/components/add-credential-dialog'
 import { Switch } from '@/components/ui/switch'
 import { ValidateCredentialsDialog } from '@/components/validate-credentials-dialog'
-import { useCredentials, useCredentialStrategy, useSetCredentialStrategy } from '@/hooks/use-credentials'
+import { useCredentials, useCredentialStrategy, useSetCredentialStrategy, useUsageStats } from '@/hooks/use-credentials'
+import type { UsageStatsRange } from '@/types/api'
 
 
 
@@ -24,6 +25,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [validateDialogOpen, setValidateDialogOpen] = useState(false)
+  const [usageRange, setUsageRange] = useState<UsageStatsRange>('24h')
   const [darkMode, setDarkMode] = useState(() => {
 
     if (typeof window !== 'undefined') {
@@ -36,6 +38,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
   const { data, isLoading, error, refetch } = useCredentials()
   const { data: strategyData } = useCredentialStrategy()
   const setStrategyMutation = useSetCredentialStrategy()
+  const { data: usageData, isLoading: usageLoading, error: usageError } = useUsageStats(usageRange)
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)
@@ -178,6 +181,97 @@ export function Dashboard({ onLogout }: DashboardProps) {
             </CardContent>
           </Card>
         </div>
+
+        {/* 使用统计 */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                使用统计
+              </CardTitle>
+              <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+                <Button
+                  variant={usageRange === '24h' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setUsageRange('24h')}
+                >
+                  24小时
+                </Button>
+                <Button
+                  variant={usageRange === '7d' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setUsageRange('7d')}
+                >
+                  7天
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {usageLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : usageError ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                加载统计数据失败
+              </div>
+            ) : usageData ? (
+              <div className="space-y-4">
+                {/* 总计 */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <div className="text-xs text-muted-foreground mb-1">调用次数</div>
+                    <div className="text-xl font-semibold">{usageData.totals.calls.toLocaleString()}</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                      <ArrowUpRight className="h-3 w-3" />
+                      输入 Tokens
+                    </div>
+                    <div className="text-xl font-semibold">{usageData.totals.inputTokens.toLocaleString()}</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                      <ArrowDownLeft className="h-3 w-3" />
+                      输出 Tokens
+                    </div>
+                    <div className="text-xl font-semibold">{usageData.totals.outputTokens.toLocaleString()}</div>
+                  </div>
+                </div>
+
+                {/* 按模型分类 */}
+                {usageData.byModel.length > 0 && (
+                  <div className="border-t pt-3">
+                    <div className="text-xs text-muted-foreground mb-2">按模型分类</div>
+                    <div className="space-y-2">
+                      {usageData.byModel.map((item) => (
+                        <div
+                          key={item.model}
+                          className="flex items-center justify-between text-sm py-1.5 px-2 rounded hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="font-medium">{item.model}</span>
+                          <div className="flex items-center gap-4 text-muted-foreground text-xs">
+                            <span>{item.calls.toLocaleString()} 次</span>
+                            <span className="text-green-600 dark:text-green-400">↑{item.inputTokens.toLocaleString()}</span>
+                            <span className="text-blue-600 dark:text-blue-400">↓{item.outputTokens.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                暂无统计数据
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 凭据列表 */}
         <div className="space-y-4">

@@ -16,12 +16,14 @@ use crate::kiro::model::requests::kiro::KiroRequest;
 use crate::kiro::provider::KiroProvider;
 use crate::kiro::token_manager::MultiTokenManager;
 use crate::model::config::{Config, CredentialSelectionStrategy};
+use crate::usage_tracker::SharedUsageTracker;
 
 use super::error::AdminServiceError;
 use super::types::{
     AddCredentialRequest, AddCredentialResponse, BalanceResponse, CredentialStatusItem,
     CredentialStrategyResponse, CredentialValidationResult, CredentialsStatusResponse,
-    ValidateCredentialsRequest, ValidateCredentialsResponse, ValidationStatus, ValidationSummary,
+    UsageModelStats, UsageModelStatsItem, UsageStatsResponse, ValidateCredentialsRequest,
+    ValidateCredentialsResponse, ValidationStatus, ValidationSummary,
 };
 
 /// Admin 服务
@@ -32,6 +34,7 @@ pub struct AdminService {
     provider: Arc<KiroProvider>,
     config: Arc<Mutex<Config>>,
     config_path: PathBuf,
+    usage_tracker: Option<SharedUsageTracker>,
 }
 
 impl AdminService {
@@ -46,7 +49,14 @@ impl AdminService {
             provider,
             config,
             config_path: config_path.into(),
+            usage_tracker: None,
         }
+    }
+
+    /// 设置使用统计追踪器
+    pub fn with_usage_tracker(mut self, tracker: SharedUsageTracker) -> Self {
+        self.usage_tracker = Some(tracker);
+        self
     }
 
     /// 获取所有凭据状态
@@ -108,6 +118,47 @@ impl AdminService {
 
         self.token_manager.set_selection_strategy(strategy);
         Ok(())
+    }
+
+    /// 获取使用统计
+    pub fn get_usage_stats(&self, range: &str) -> UsageStatsResponse {
+        let stats = match &self.usage_tracker {
+            Some(tracker) => {
+                if range == "7d" {
+                    tracker.query_7d()
+                } else {
+                    tracker.query_24h()
+                }
+            }
+            None => crate::usage_tracker::UsageStats {
+                totals: crate::usage_tracker::ModelUsage::default(),
+                by_model: std::collections::HashMap::new(),
+            },
+        };
+
+        let mut by_model: Vec<UsageModelStatsItem> = stats
+            .by_model
+            .into_iter()
+            .map(|(model, usage)| UsageModelStatsItem {
+                model,
+                calls: usage.calls,
+                input_tokens: usage.input_tokens,
+                output_tokens: usage.output_tokens,
+            })
+            .collect();
+
+        // 按调用次数降序排序
+        by_model.sort_by(|a, b| b.calls.cmp(&a.calls));
+
+        UsageStatsResponse {
+            range: range.to_string(),
+            totals: UsageModelStats {
+                calls: stats.totals.calls,
+                input_tokens: stats.totals.input_tokens,
+                output_tokens: stats.totals.output_tokens,
+            },
+            by_model,
+        }
     }
 
     /// 设置凭据禁用状态

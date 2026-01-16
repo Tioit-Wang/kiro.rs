@@ -8,7 +8,7 @@ use axum::{
 use super::{
     handlers::{
         add_credential, delete_credential, get_all_credentials, get_credential_balance,
-        get_credential_strategy, reset_failure_count, set_credential_disabled,
+        get_credential_strategy, get_usage_stats, reset_failure_count, set_credential_disabled,
         set_credential_priority, set_credential_strategy, validate_credentials,
     },
     middleware::{AdminState, admin_auth_middleware},
@@ -17,6 +17,7 @@ use super::{
 /// 创建 Admin API 路由
 ///
 /// # 端点
+/// - `GET /stats/usage` - 获取使用统计（支持 ?range=24h|7d）
 /// - `GET /config/credential-strategy` - 获取凭据选择策略
 /// - `POST /config/credential-strategy` - 设置凭据选择策略
 /// - `GET /credentials` - 获取所有凭据状态
@@ -34,6 +35,7 @@ use super::{
 /// - `Authorization: Bearer <token>` header
 pub fn create_admin_router(state: AdminState) -> Router {
     Router::new()
+        .route("/stats/usage", get(get_usage_stats))
         .route(
             "/config/credential-strategy",
             get(get_credential_strategy).post(set_credential_strategy),

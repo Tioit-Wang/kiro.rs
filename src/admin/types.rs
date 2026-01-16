@@ -295,6 +295,59 @@ impl AdminErrorResponse {
     }
 }
 
+// ============ 使用统计 ============
+
+/// 使用统计查询请求参数
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageStatsQuery {
+    /// 时间范围：24h 或 7d
+    #[serde(default = "default_usage_range")]
+    pub range: String,
+}
+
+fn default_usage_range() -> String {
+    "24h".to_string()
+}
+
+/// 使用统计响应
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageStatsResponse {
+    /// 查询的时间范围
+    pub range: String,
+    /// 总计统计
+    pub totals: UsageModelStats,
+    /// 按模型分组的统计
+    pub by_model: Vec<UsageModelStatsItem>,
+}
+
+/// 单个模型的使用统计
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageModelStats {
+    /// 调用次数
+    pub calls: u64,
+    /// 输入 tokens
+    pub input_tokens: i64,
+    /// 输出 tokens
+    pub output_tokens: i64,
+}
+
+/// 按模型分组的统计项
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageModelStatsItem {
+    /// 模型名称
+    pub model: String,
+    /// 调用次数
+    pub calls: u64,
+    /// 输入 tokens
+    pub input_tokens: i64,
+    /// 输出 tokens
+    pub output_tokens: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

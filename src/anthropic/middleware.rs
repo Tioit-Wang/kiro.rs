@@ -12,6 +12,7 @@ use axum::{
 
 use crate::common::auth;
 use crate::kiro::provider::KiroProvider;
+use crate::usage_tracker::SharedUsageTracker;
 
 use super::types::ErrorResponse;
 
@@ -25,6 +26,8 @@ pub struct AppState {
     pub kiro_provider: Option<Arc<KiroProvider>>,
     /// Profile ARN（可选，用于请求）
     pub profile_arn: Option<String>,
+    /// 使用统计追踪器
+    pub usage_tracker: Option<SharedUsageTracker>,
 }
 
 impl AppState {
@@ -34,6 +37,7 @@ impl AppState {
             api_key: api_key.into(),
             kiro_provider: None,
             profile_arn: None,
+            usage_tracker: None,
         }
     }
 
@@ -46,6 +50,12 @@ impl AppState {
     /// 设置 Profile ARN
     pub fn with_profile_arn(mut self, arn: impl Into<String>) -> Self {
         self.profile_arn = Some(arn.into());
+        self
+    }
+
+    /// 设置使用统计追踪器
+    pub fn with_usage_tracker(mut self, tracker: SharedUsageTracker) -> Self {
+        self.usage_tracker = Some(tracker);
         self
     }
 }

@@ -13,6 +13,8 @@ import type {
   CredentialStrategy,
   ValidateCredentialsRequest,
   ValidateCredentialsResponse,
+  UsageStatsRange,
+  UsageStatsResponse,
 } from '@/types/api'
 
 // 创建 axios 实例
@@ -117,6 +119,14 @@ export async function validateCredentials(
     '/credentials/validate',
     req
   )
+  return data
+}
+
+// 获取使用统计
+export async function getUsageStats(range: UsageStatsRange): Promise<UsageStatsResponse> {
+  const { data } = await api.get<UsageStatsResponse>('/stats/usage', {
+    params: { range },
+  })
   return data
 }
 

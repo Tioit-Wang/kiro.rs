@@ -10,10 +10,13 @@ import {
   getCredentialStrategy,
   setCredentialStrategy,
   validateCredentials,
+  getUsageStats,
 } from '@/api/credentials'
+
 import type {
   AddCredentialRequest,
   CredentialStrategy,
+  UsageStatsRange,
   ValidateCredentialsRequest,
 } from '@/types/api'
 
@@ -118,6 +121,14 @@ export function useSetCredentialStrategy() {
 export function useValidateCredentials() {
   return useMutation({
     mutationFn: (req: ValidateCredentialsRequest) => validateCredentials(req),
+  })
+}
+
+// 使用统计（Token/calls）
+export function useUsageStats(range: UsageStatsRange) {
+  return useQuery({
+    queryKey: ['usage-stats', range],
+    queryFn: () => getUsageStats(range),
   })
 }
 

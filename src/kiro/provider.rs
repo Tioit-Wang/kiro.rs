@@ -51,6 +51,7 @@ impl KiroProvider {
     }
 
     /// 获取 token_manager 的引用
+    #[allow(dead_code)]
     pub fn token_manager(&self) -> &MultiTokenManager {
         &self.token_manager
     }

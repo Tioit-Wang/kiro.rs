@@ -117,3 +117,24 @@ export interface ValidationSummary {
   notFound: number
 }
 
+// ============ 使用统计 ============
+
+export type UsageStatsRange = '24h' | '7d'
+
+export interface UsageModelStats {
+  calls: number
+  inputTokens: number
+  outputTokens: number
+}
+
+export interface UsageModelStatsItem extends UsageModelStats {
+  model: string
+}
+
+export interface UsageStatsResponse {
+  range: UsageStatsRange
+  totals: UsageModelStats
+  byModel: UsageModelStatsItem[]
+}
+
+

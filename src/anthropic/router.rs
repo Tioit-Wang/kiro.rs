@@ -6,6 +6,7 @@ use axum::{
 };
 
 use crate::kiro::provider::KiroProvider;
+use crate::usage_tracker::SharedUsageTracker;
 
 use super::{
     handlers::{count_tokens, get_models, post_messages},
@@ -33,6 +34,7 @@ pub fn create_router_with_provider(
     api_key: impl Into<String>,
     kiro_provider: Option<KiroProvider>,
     profile_arn: Option<String>,
+    usage_tracker: Option<SharedUsageTracker>,
 ) -> Router {
     let mut state = AppState::new(api_key);
     if let Some(provider) = kiro_provider {
@@ -40,6 +42,9 @@ pub fn create_router_with_provider(
     }
     if let Some(arn) = profile_arn {
         state = state.with_profile_arn(arn);
+    }
+    if let Some(tracker) = usage_tracker {
+        state = state.with_usage_tracker(tracker);
     }
 
     // 需要认证的 /v1 路由

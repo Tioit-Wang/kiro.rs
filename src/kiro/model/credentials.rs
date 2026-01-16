@@ -124,6 +124,7 @@ impl CredentialsConfig {
     }
 
     /// 判断是否为空
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         match self {
             CredentialsConfig::Single(_) => false,
@@ -149,6 +150,7 @@ impl KiroCredentials {
     }
 
     /// 从文件加载凭证
+    #[allow(dead_code)]
     pub fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let content = fs::read_to_string(path.as_ref())?;
         if content.is_empty() {

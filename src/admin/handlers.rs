@@ -2,7 +2,7 @@
 
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::IntoResponse,
 };
 
@@ -10,7 +10,7 @@ use super::{
     middleware::AdminState,
     types::{
         AddCredentialRequest, SetCredentialStrategyRequest, SetDisabledRequest, SetPriorityRequest,
-        SuccessResponse, ValidateCredentialsRequest,
+        SuccessResponse, UsageStatsQuery, ValidateCredentialsRequest,
     },
 };
 
@@ -18,6 +18,16 @@ use super::{
 /// 获取所有凭据状态
 pub async fn get_all_credentials(State(state): State<AdminState>) -> impl IntoResponse {
     let response = state.service.get_all_credentials();
+    Json(response)
+}
+
+/// GET /api/admin/stats/usage
+/// 获取使用统计
+pub async fn get_usage_stats(
+    State(state): State<AdminState>,
+    Query(query): Query<UsageStatsQuery>,
+) -> impl IntoResponse {
+    let response = state.service.get_usage_stats(&query.range);
     Json(response)
 }
 

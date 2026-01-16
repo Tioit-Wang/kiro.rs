@@ -347,6 +347,7 @@ impl EventStreamDecoder {
     }
 
     /// 获取跳过的字节数
+    #[allow(dead_code)]
     pub fn bytes_skipped(&self) -> usize {
         self.bytes_skipped
     }

@@ -6,6 +6,7 @@ mod http_client;
 mod kiro;
 mod model;
 pub mod token;
+pub mod usage_tracker;
 
 use std::sync::Arc;
 
@@ -96,6 +97,10 @@ async fn main() {
     let token_manager = Arc::new(token_manager);
     let kiro_provider = KiroProvider::with_proxy(token_manager.clone(), proxy_config.clone());
 
+    // 创建使用统计追踪器
+    let usage_tracker = usage_tracker::create_tracker("usage_stats.json");
+    tracing::info!("使用统计追踪器已初始化");
+
     // 初始化 count_tokens 配置
     token::init_config(token::CountTokensConfig {
         api_url: config.count_tokens_api_url.clone(),
@@ -109,6 +114,7 @@ async fn main() {
         &api_key,
         Some(kiro_provider),
         first_credentials.profile_arn.clone(),
+        Some(usage_tracker.clone()),
     );
 
     // 构建 Admin API 路由（如果配置了非空的 admin_api_key）
@@ -134,7 +140,8 @@ async fn main() {
                 admin_provider,
                 config_store.clone(),
                 config_path.clone(),
-            );
+            )
+            .with_usage_tracker(usage_tracker.clone());
             let admin_state = admin::AdminState::new(admin_key, admin_service);
 
             let admin_app = admin::create_admin_router(admin_state);
@@ -167,6 +174,7 @@ async fn main() {
         tracing::info!("  POST /api/admin/credentials/:index/priority");
         tracing::info!("  POST /api/admin/credentials/:index/reset");
         tracing::info!("  GET  /api/admin/credentials/:index/balance");
+        tracing::info!("  GET  /api/admin/stats/usage");
         tracing::info!("Admin UI:");
         tracing::info!("  GET  /admin");
     }

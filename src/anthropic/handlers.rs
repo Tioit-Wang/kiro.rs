@@ -6,6 +6,7 @@ use crate::kiro::model::events::Event;
 use crate::kiro::model::requests::kiro::KiroRequest;
 use crate::kiro::parser::decoder::EventStreamDecoder;
 use crate::token;
+use crate::usage_tracker::SharedUsageTracker;
 use axum::{
     Json as JsonExtractor,
     body::Body,
@@ -112,6 +113,12 @@ pub async fn post_messages(
             payload.tools.clone(),
         ) as i32;
 
+        // WebSearch 也记录统计（估算值）
+        if let Some(tracker) = &state.usage_tracker {
+            // WebSearch 输出 tokens 估算为 500（搜索结果）
+            tracker.record(&payload.model, input_tokens as i64, 500);
+        }
+
         return websearch::handle_websearch_request(provider, &payload, input_tokens).await;
     }
 
@@ -182,11 +189,19 @@ pub async fn post_messages(
             &payload.model,
             input_tokens,
             thinking_enabled,
+            state.usage_tracker.clone(),
         )
         .await
     } else {
         // 非流式响应
-        handle_non_stream_request(provider, &request_body, &payload.model, input_tokens).await
+        handle_non_stream_request(
+            provider,
+            &request_body,
+            &payload.model,
+            input_tokens,
+            state.usage_tracker.clone(),
+        )
+        .await
     }
 }
 
@@ -197,6 +212,7 @@ async fn handle_stream_request(
     model: &str,
     input_tokens: i32,
     thinking_enabled: bool,
+    usage_tracker: Option<SharedUsageTracker>,
 ) -> Response {
     // 调用 Kiro API（支持多凭据故障转移）
     let response = match provider.call_api_stream(request_body).await {
@@ -221,7 +237,13 @@ async fn handle_stream_request(
     let initial_events = ctx.generate_initial_events();
 
     // 创建 SSE 流
-    let stream = create_sse_stream(response, ctx, initial_events);
+    let stream = create_sse_stream(
+        response,
+        ctx,
+        initial_events,
+        model.to_string(),
+        usage_tracker,
+    );
 
     // 返回 SSE 响应
     Response::builder()
@@ -246,6 +268,8 @@ fn create_sse_stream(
     response: reqwest::Response,
     ctx: StreamContext,
     initial_events: Vec<SseEvent>,
+    model: String,
+    usage_tracker: Option<SharedUsageTracker>,
 ) -> impl Stream<Item = Result<Bytes, Infallible>> {
     // 先发送初始事件
     let initial_stream = stream::iter(
@@ -258,8 +282,8 @@ fn create_sse_stream(
     let body_stream = response.bytes_stream();
 
     let processing_stream = stream::unfold(
-        (body_stream, ctx, EventStreamDecoder::new(), false, interval(Duration::from_secs(PING_INTERVAL_SECS))),
-        |(mut body_stream, mut ctx, mut decoder, finished, mut ping_interval)| async move {
+        (body_stream, ctx, EventStreamDecoder::new(), false, interval(Duration::from_secs(PING_INTERVAL_SECS)), model, usage_tracker),
+        |(mut body_stream, mut ctx, mut decoder, finished, mut ping_interval, model, usage_tracker)| async move {
             if finished {
                 return None;
             }
@@ -296,26 +320,36 @@ fn create_sse_stream(
                                 .map(|e| Ok(Bytes::from(e.to_sse_string())))
                                 .collect();
 
-                            Some((stream::iter(bytes), (body_stream, ctx, decoder, false, ping_interval)))
+                            Some((stream::iter(bytes), (body_stream, ctx, decoder, false, ping_interval, model, usage_tracker)))
                         }
                         Some(Err(e)) => {
                             tracing::error!("读取响应流失败: {}", e);
+                            // 记录统计（使用估算值）
+                            if let Some(tracker) = &usage_tracker {
+                                let input = ctx.context_input_tokens.unwrap_or(ctx.input_tokens);
+                                tracker.record(&model, input as i64, ctx.output_tokens as i64);
+                            }
                             // 发送最终事件并结束
                             let final_events = ctx.generate_final_events();
                             let bytes: Vec<Result<Bytes, Infallible>> = final_events
                                 .into_iter()
                                 .map(|e| Ok(Bytes::from(e.to_sse_string())))
                                 .collect();
-                            Some((stream::iter(bytes), (body_stream, ctx, decoder, true, ping_interval)))
+                            Some((stream::iter(bytes), (body_stream, ctx, decoder, true, ping_interval, model, usage_tracker)))
                         }
                         None => {
-                            // 流结束，发送最终事件
+                            // 流结束，记录统计
+                            if let Some(tracker) = &usage_tracker {
+                                let input = ctx.context_input_tokens.unwrap_or(ctx.input_tokens);
+                                tracker.record(&model, input as i64, ctx.output_tokens as i64);
+                            }
+                            // 发送最终事件
                             let final_events = ctx.generate_final_events();
                             let bytes: Vec<Result<Bytes, Infallible>> = final_events
                                 .into_iter()
                                 .map(|e| Ok(Bytes::from(e.to_sse_string())))
                                 .collect();
-                            Some((stream::iter(bytes), (body_stream, ctx, decoder, true, ping_interval)))
+                            Some((stream::iter(bytes), (body_stream, ctx, decoder, true, ping_interval, model, usage_tracker)))
                         }
                     }
                 }
@@ -323,7 +357,7 @@ fn create_sse_stream(
                 _ = ping_interval.tick() => {
                     tracing::trace!("发送 ping 保活事件");
                     let bytes: Vec<Result<Bytes, Infallible>> = vec![Ok(create_ping_sse())];
-                    Some((stream::iter(bytes), (body_stream, ctx, decoder, false, ping_interval)))
+                    Some((stream::iter(bytes), (body_stream, ctx, decoder, false, ping_interval, model, usage_tracker)))
                 }
             }
         },
@@ -342,6 +376,7 @@ async fn handle_non_stream_request(
     request_body: &str,
     model: &str,
     input_tokens: i32,
+    usage_tracker: Option<SharedUsageTracker>,
 ) -> Response {
     // 调用 Kiro API（支持多凭据故障转移）
     let response = match provider.call_api(request_body).await {
@@ -479,6 +514,11 @@ async fn handle_non_stream_request(
 
     // 使用从 contextUsageEvent 计算的 input_tokens，如果没有则使用估算值
     let final_input_tokens = context_input_tokens.unwrap_or(input_tokens);
+
+    // 记录使用统计
+    if let Some(tracker) = usage_tracker {
+        tracker.record(model, final_input_tokens as i64, output_tokens as i64);
+    }
 
     // 构建 Anthropic 响应
     let response_body = json!({

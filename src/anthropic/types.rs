@@ -103,6 +103,7 @@ pub struct MessagesRequest {
     pub stream: bool,
     pub system: Option<Vec<SystemMessage>>,
     pub tools: Option<Vec<Tool>>,
+    #[allow(dead_code)]
     pub tool_choice: Option<serde_json::Value>,
     pub thinking: Option<Thinking>,
     /// Claude Code 请求中的 metadata，包含 session 信息
@@ -149,6 +150,7 @@ pub struct Tool {
 
 impl Tool {
     /// 检查是否为 WebSearch 工具
+    #[allow(dead_code)]
     pub fn is_web_search(&self) -> bool {
         self.tool_type
             .as_ref()

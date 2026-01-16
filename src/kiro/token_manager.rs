@@ -24,12 +24,14 @@ use crate::model::config::{Config, CredentialSelectionStrategy};
 /// Token 管理器
 ///
 /// 负责管理凭据和 Token 的自动刷新
+#[allow(dead_code)]
 pub struct TokenManager {
     config: Config,
     credentials: KiroCredentials,
     proxy: Option<ProxyConfig>,
 }
 
+#[allow(dead_code)]
 impl TokenManager {
     /// 创建新的 TokenManager 实例
     pub fn new(config: Config, credentials: KiroCredentials, proxy: Option<ProxyConfig>) -> Self {
@@ -1144,6 +1146,7 @@ impl MultiTokenManager {
     }
 
     /// 获取使用额度信息
+    #[allow(dead_code)]
     pub async fn get_usage_limits(&self) -> anyhow::Result<UsageLimitsResponse> {
         let ctx = self.acquire_context().await?;
         get_usage_limits(
